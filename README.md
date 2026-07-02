@@ -228,7 +228,7 @@ Always pass `timestamp` in local time to avoid the UTC/local date boundary issue
 
 ```json
 {
-  "weight_lbs": 189.6,
+  "weight_kg": 86.0,
   "timestamp": "2026-04-19T07:00:00"
 }
 ```
@@ -258,17 +258,6 @@ Body composition is uploaded via `.fit` file. Weight is required; all other fiel
 
 ---
 
-### Garmin — Nutrition
-
-```
-GET  /garmin/nutrition?log_date=YYYY-MM-DD    ← read-only
-POST /garmin/nutrition                         ← returns 501
-```
-
-Garmin's nutrition API is food-database-based. Raw macro logging is not supported. Use `PUT /intervals/wellness/{date}` for calories and macros instead.
-
----
-
 ### Garmin — Daily Health (read-only)
 
 ```
@@ -281,11 +270,11 @@ GET /garmin/profile
 
 ---
 
-### Garmin — Activities (read-only)
+### Garmin — Activities
 
 ```
-GET /garmin/activities?start=0&limit=20
-GET /garmin/activities/{activity_id}
+GET  /garmin/activities?start=0&limit=20
+GET  /garmin/activities/{activity_id}
 ```
 
 ---
@@ -305,10 +294,9 @@ Dates and timestamps are always passed explicitly by the caller — nothing defa
 | Weight | Intervals.icu wellness | ✅ Reliable |
 | Weight | Garmin Connect | ✅ Reliable |
 | Macros / calories | Intervals.icu wellness | ✅ Reliable |
-| Macros / calories | Garmin Connect | ❌ Not supported |
+| Macros / calories | Garmin Connect | ❌ No endpoint — use Intervals.icu wellness |
 | Body composition | Garmin Connect | ✅ Via .fit upload |
 | Planned workouts | Intervals.icu events | ✅ Reliable |
-| Activity upload | Garmin Connect | ✅ Via file upload |
 
 ---
 

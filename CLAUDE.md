@@ -18,12 +18,12 @@ This document contains everything Claude needs to work with the fitness-api and 
 
 ## Key Conventions
 
-- **Weight — Garmin:** `POST /garmin/weight` takes `weight_lbs`, converted to kg internally
+- **Weight — Garmin:** `POST /garmin/weight` takes `weight_kg` directly (no conversion — client sends kg)
 - **Weight — Intervals.icu:** `PUT /intervals/wellness/{date}` is a raw passthrough — pass `weight` in **kg** directly, no conversion happens
 - **Intervals.icu wellness in general:** raw passthrough, no field renaming or unit conversion — use the exact Intervals.icu field names/units (see API Reference below or https://intervals.icu/api/v1/docs)
 - **Dates:** always passed explicitly as `YYYY-MM-DD` — nothing defaults to server-side "today"
 - **Timestamps:** always in local Eastern time (ET, UTC-4) — never rely on server UTC clock
-- **Nutrition/macros:** Intervals.icu wellness only — Garmin nutrition write is not supported
+- **Nutrition/macros:** Intervals.icu wellness only — Garmin has no nutrition endpoints at all
 - **Garmin weight:** always include `timestamp` in local time to avoid writing to the wrong day
 - **Date resolution:** when the user says "yesterday" or "last Saturday", compute the explicit date and state it before making any API call so they can confirm
 
@@ -82,16 +82,15 @@ Z1 <115, Z2 115-140, Z3 140-159, Z4 159-178, Z5 >178
 ## Common Workflows
 
 ### Morning weight log
-Logs to both Intervals.icu and Garmin simultaneously. Note the unit difference —
-Garmin takes lbs (converted server-side), Intervals.icu wellness is a raw passthrough
-and takes kg directly.
+Logs to both Intervals.icu and Garmin simultaneously. Both now take kg directly —
+no client-side conversion needed for either.
 
 ```
 PUT /intervals/wellness/YYYY-MM-DD
 {"weight": 86.0}
 
 POST /garmin/weight
-{"weight_lbs": 189.6, "timestamp": "YYYY-MM-DDTHH:MM:SS"}
+{"weight_kg": 86.0, "timestamp": "YYYY-MM-DDTHH:MM:SS"}
 ```
 
 ### Nutrition / macros (Intervals.icu only)
@@ -353,10 +352,18 @@ Sport settings are **read-only** — do not PUT on sport-settings.
 | `GET` | `/garmin/steps?log_date=` |
 | `GET` | `/garmin/profile` |
 
-### Garmin — Nutrition
+Garmin has no nutrition endpoints — their API matches foods against an
+internal database rather than accepting raw macro totals, so it wasn't a
+good fit. Use `PUT /intervals/wellness/{date}` for calories and macros.
 
-Not supported — Garmin's API is food-database-based.
-`POST /garmin/nutrition` returns 501. Use `PUT /intervals/wellness/{date}` for macros.
+### Garmin — Activities
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/garmin/activities?start=&limit=` | Recent activities |
+| `GET` | `/garmin/activities/{id}` | Single activity |
+
+No activity file upload endpoint — removed as unused.
 
 ---
 
@@ -395,6 +402,6 @@ docker exec -it fitness-api python -m app.services.garmin --reauth
 | Macros (protein/carbs/fat) | yes | no |
 | Body composition | no | yes via .fit upload |
 | HRV / sleep / subjective scores | yes | no |
-| Planned workouts | yes | yes |
-| Activity upload | yes | yes |
+| Planned workouts | yes | no — not implemented |
+| Activity upload | yes | no — removed, unused |
 | Athlete zones / FTP | no — read-only | no |
