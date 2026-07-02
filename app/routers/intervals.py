@@ -1,21 +1,23 @@
 """
 Intervals.icu router.
 
-The wellness endpoint handles unit conversion (lbs->kg, hours->sleepSecs)
-via a typed Pydantic model before proxying. All other endpoints are thin
-pass-throughs to the Intervals.icu API via the proxy service.
+Pure passthrough to the Intervals.icu API. No custom Pydantic models, no
+field renaming, no unit conversion. Callers send the exact field names and
+native units defined by the Intervals.icu OpenAPI spec
+(https://intervals.icu/api/v1/docs) — e.g. wellness bodies use
+`kcalConsumed`, `carbohydrates`, `protein`, `fatTotal`, `weight` (kg),
+`sleepSecs` (seconds).
 
 All endpoints require the X-API-Key header matching FITNESS_API_KEY.
 Dates are always passed explicitly by the caller to avoid UTC/ET ambiguity.
 """
 
 from datetime import date
-from typing import Any, Optional
+from typing import Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
 
 from app.services import intervals as svc
 from app.auth import require_api_key
@@ -25,76 +27,6 @@ router = APIRouter(
     tags=["intervals"],
     dependencies=[Depends(require_api_key)],
 )
-
-
-# ---------------------------------------------------------------------------
-# Wellness model — typed because we apply unit conversions here
-# ---------------------------------------------------------------------------
-
-class WellnessUpdate(BaseModel):
-    """
-    Wellness record for a single day.
-    All fields optional — only provided fields are written.
-    Intervals.icu PUT is non-destructive for omitted fields.
-
-    Unit conversions applied by this API:
-        weight_lbs  -> weight (kg)
-        sleep_hours -> sleepSecs (seconds)
-
-    All other fields map directly to Intervals.icu field names via build_wellness_payload().
-    """
-    # Weight
-    weight_lbs: Optional[float] = Field(None, description="Weight in lbs — converted to kg")
-
-    # Nutrition
-    calories: Optional[int] = Field(None, description="Calories (kcal) -> kcalConsumed")
-    protein_g: Optional[float] = Field(None, description="Protein (g) -> protein")
-    carbs_g: Optional[float] = Field(None, description="Carbohydrates (g) -> carbohydrates")
-    fat_g: Optional[float] = Field(None, description="Fat (g) -> fatTotal")
-
-    # Sleep
-    sleep_hours: Optional[float] = Field(None, description="Sleep duration in hours -> sleepSecs")
-    sleep_score: Optional[float] = Field(None, description="Sleep score -> sleepScore")
-    sleep_quality: Optional[int] = Field(None, description="Sleep quality 1-4 -> sleepQuality")
-    avg_sleeping_hr: Optional[float] = Field(None, description="Avg sleeping HR -> avgSleepingHR")
-
-    # Heart & vitals
-    resting_hr: Optional[int] = Field(None, description="Resting HR (bpm) -> restingHR")
-    hrv: Optional[float] = Field(None, description="HRV (ms) -> hrv")
-    hrv_sdnn: Optional[float] = Field(None, description="HRV SDNN (ms) -> hrvSDNN")
-    spO2: Optional[float] = Field(None, description="Blood oxygen % -> spO2")
-    systolic: Optional[int] = Field(None, description="Systolic BP (mmHg) -> systolic")
-    diastolic: Optional[int] = Field(None, description="Diastolic BP (mmHg) -> diastolic")
-    respiration: Optional[float] = Field(None, description="Respiration rate -> respiration")
-    baevsky_si: Optional[float] = Field(None, description="Baevsky stress index -> baevskySI")
-
-    # Body composition
-    body_fat: Optional[float] = Field(None, description="Body fat % -> bodyFat")
-    abdomen: Optional[float] = Field(None, description="Abdomen measurement -> abdomen")
-
-    # Metabolic / lab
-    blood_glucose: Optional[float] = Field(None, description="Blood glucose -> bloodGlucose")
-    lactate: Optional[float] = Field(None, description="Lactate -> lactate")
-    vo2max: Optional[float] = Field(None, description="VO2max -> vo2max")
-
-    # Subjective scores
-    fatigue: Optional[int] = Field(None, ge=1, le=5, description="Fatigue 1-5")
-    soreness: Optional[int] = Field(None, ge=1, le=5, description="Soreness 1-5")
-    mood: Optional[int] = Field(None, ge=1, le=5, description="Mood 1-5")
-    motivation: Optional[int] = Field(None, ge=1, le=5, description="Motivation 1-5")
-    stress: Optional[int] = Field(None, ge=1, le=5, description="Stress 1-5")
-    injury: Optional[int] = Field(None, description="Injury score -> injury")
-    readiness: Optional[float] = Field(None, description="Readiness 0-100 -> readiness")
-
-    # Hydration
-    hydration: Optional[int] = Field(None, description="Hydration score -> hydration")
-    hydration_volume: Optional[float] = Field(None, description="Hydration volume -> hydrationVolume")
-
-    # Activity
-    steps: Optional[int] = Field(None, description="Steps -> steps")
-
-    # Free text
-    comments: Optional[str] = Field(None, description="Free text -> comments")
 
 
 # ---------------------------------------------------------------------------
@@ -111,23 +43,27 @@ def _proxy_error(e: Exception) -> HTTPException:
 
 
 # ---------------------------------------------------------------------------
-# Wellness endpoints — typed, with unit conversion
+# Wellness endpoints — raw passthrough
 # ---------------------------------------------------------------------------
 
 @router.put("/wellness/{day}")
-def put_wellness(day: date, body: WellnessUpdate):
+async def put_wellness(day: date, request: Request):
     """
     Create or update a wellness record for a specific date.
-    Weight in lbs is converted to kg. Sleep in hours converted to seconds.
-    All other fields passed through after field name mapping.
+
+    Body must match the Intervals.icu Wellness schema exactly (e.g.
+    kcalConsumed, carbohydrates, protein, fatTotal, weight in kg,
+    sleepSecs in seconds). Forwarded as-is — no field renaming or unit
+    conversion. PUT is non-destructive for omitted fields.
     """
-    fields = body.model_dump(exclude_none=True)
-    if not fields:
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Request body must be valid JSON.")
+    if not isinstance(body, dict) or not body:
         raise HTTPException(status_code=400, detail="No fields provided.")
     try:
-        return svc.put_wellness(day, fields)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        return svc.request("PUT", f"/wellness/{day.isoformat()}", body=body)
     except Exception as e:
         raise _proxy_error(e)
 

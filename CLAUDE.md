@@ -18,7 +18,9 @@ This document contains everything Claude needs to work with the fitness-api and 
 
 ## Key Conventions
 
-- **Weight:** always passed in lbs — the API converts to kg internally
+- **Weight — Garmin:** `POST /garmin/weight` takes `weight_lbs`, converted to kg internally
+- **Weight — Intervals.icu:** `PUT /intervals/wellness/{date}` is a raw passthrough — pass `weight` in **kg** directly, no conversion happens
+- **Intervals.icu wellness in general:** raw passthrough, no field renaming or unit conversion — use the exact Intervals.icu field names/units (see API Reference below or https://intervals.icu/api/v1/docs)
 - **Dates:** always passed explicitly as `YYYY-MM-DD` — nothing defaults to server-side "today"
 - **Timestamps:** always in local Eastern time (ET, UTC-4) — never rely on server UTC clock
 - **Nutrition/macros:** Intervals.icu wellness only — Garmin nutrition write is not supported
@@ -80,11 +82,13 @@ Z1 <115, Z2 115-140, Z3 140-159, Z4 159-178, Z5 >178
 ## Common Workflows
 
 ### Morning weight log
-Logs to both Intervals.icu and Garmin simultaneously.
+Logs to both Intervals.icu and Garmin simultaneously. Note the unit difference —
+Garmin takes lbs (converted server-side), Intervals.icu wellness is a raw passthrough
+and takes kg directly.
 
 ```
 PUT /intervals/wellness/YYYY-MM-DD
-{"weight_lbs": 189.6}
+{"weight": 86.0}
 
 POST /garmin/weight
 {"weight_lbs": 189.6, "timestamp": "YYYY-MM-DDTHH:MM:SS"}
@@ -93,13 +97,13 @@ POST /garmin/weight
 ### Nutrition / macros (Intervals.icu only)
 ```
 PUT /intervals/wellness/YYYY-MM-DD
-{"calories": 2400, "protein_g": 180, "carbs_g": 220, "fat_g": 80}
+{"kcalConsumed": 2400, "protein": 180, "carbohydrates": 220, "fatTotal": 80}
 ```
 
 ### Combined weight + nutrition
 ```
 PUT /intervals/wellness/YYYY-MM-DD
-{"weight_lbs": 189.6, "calories": 2400, "protein_g": 180, "carbs_g": 220, "fat_g": 80, "comments": "Optional free text"}
+{"weight": 86.0, "kcalConsumed": 2400, "protein": 180, "carbohydrates": 220, "fatTotal": 80, "comments": "Optional free text"}
 ```
 
 ### Read any Intervals.icu data
@@ -281,7 +285,7 @@ Fetch via proxy: `GET /intervals/proxy/athlete/best-efforts` or query training h
 
 ## API Reference
 
-### Intervals.icu — Wellness (typed, with unit conversion)
+### Intervals.icu — Wellness (raw passthrough)
 
 | Method | Path | Description |
 |---|---|---|
@@ -289,43 +293,19 @@ Fetch via proxy: `GET /intervals/proxy/athlete/best-efforts` or query training h
 | `GET` | `/intervals/wellness/{date}` | Get single day |
 | `GET` | `/intervals/wellness?oldest=&newest=` | Get date range |
 
-All fields optional. Only provided fields are written (PUT is non-destructive).
+No field renaming, no unit conversion, no local validation. The request body is
+forwarded to Intervals.icu exactly as sent — use their native field names and units
+(camelCase, kg, seconds). All fields optional; only provided fields are written
+(PUT is non-destructive).
 
-| Our field | Type | Intervals.icu field | Notes |
-|---|---|---|---|
-| `weight_lbs` | float | `weight` | Converted to kg |
-| `calories` | int | `kcalConsumed` | kcal |
-| `protein_g` | float | `protein` | grams |
-| `carbs_g` | float | `carbohydrates` | grams |
-| `fat_g` | float | `fatTotal` | grams |
-| `sleep_hours` | float | `sleepSecs` | Converted to seconds |
-| `sleep_score` | float | `sleepScore` | |
-| `sleep_quality` | int | `sleepQuality` | 1-4 |
-| `avg_sleeping_hr` | float | `avgSleepingHR` | bpm |
-| `resting_hr` | int | `restingHR` | bpm |
-| `hrv` | float | `hrv` | ms |
-| `hrv_sdnn` | float | `hrvSDNN` | ms |
-| `spO2` | float | `spO2` | % |
-| `systolic` | int | `systolic` | mmHg |
-| `diastolic` | int | `diastolic` | mmHg |
-| `respiration` | float | `respiration` | |
-| `baevsky_si` | float | `baevskySI` | |
-| `body_fat` | float | `bodyFat` | % |
-| `abdomen` | float | `abdomen` | |
-| `blood_glucose` | float | `bloodGlucose` | |
-| `lactate` | float | `lactate` | |
-| `vo2max` | float | `vo2max` | |
-| `fatigue` | int | `fatigue` | 1-5 |
-| `soreness` | int | `soreness` | 1-5 |
-| `mood` | int | `mood` | 1-5 |
-| `motivation` | int | `motivation` | 1-5 |
-| `stress` | int | `stress` | 1-5 |
-| `injury` | int | `injury` | |
-| `readiness` | float | `readiness` | 0-100 |
-| `hydration` | int | `hydration` | |
-| `hydration_volume` | float | `hydrationVolume` | |
-| `steps` | int | `steps` | |
-| `comments` | str | `comments` | Free text |
+Common fields: `weight` (kg), `kcalConsumed`, `protein` (g), `carbohydrates` (g),
+`fatTotal` (g), `sleepSecs`, `sleepScore`, `sleepQuality` (1-4), `avgSleepingHR`,
+`restingHR`, `hrv`, `hrvSDNN`, `spO2`, `systolic`, `diastolic`, `respiration`,
+`baevskySI`, `bodyFat`, `abdomen`, `bloodGlucose`, `lactate`, `vo2max`,
+`fatigue`/`soreness`/`mood`/`motivation`/`stress` (1-5), `injury`, `readiness` (0-100),
+`hydration`, `hydrationVolume`, `steps`, `comments` (free text).
+
+Full schema, source of truth: https://intervals.icu/api/v1/docs (`Wellness` component).
 
 ### Intervals.icu — Generic Proxy (full API surface)
 
