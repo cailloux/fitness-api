@@ -144,26 +144,30 @@ FastAPI's built-in Swagger UI. Useful for testing endpoints manually.
 PUT /intervals/wellness/{date}
 ```
 
-Date format: `YYYY-MM-DD`. All fields optional — only provided fields are written. PUT is non-destructive; omitted fields are not overwritten.
+Date format: `YYYY-MM-DD`. This is a **raw passthrough** — the body must match the
+[Intervals.icu Wellness schema](https://intervals.icu/api/v1/docs) exactly. No field
+renaming, no unit conversion, no validation on this API's side. All fields optional —
+only provided fields are written. PUT is non-destructive; omitted fields are not
+overwritten.
 
-Weight is accepted in **lbs** and converted to kg. Sleep is accepted in **hours** and converted to seconds.
+Weight is in **kg**. Sleep is in **seconds**.
 
 ```json
 {
-  "weight_lbs": 189.6,
-  "calories": 2400,
-  "protein_g": 180,
-  "carbs_g": 220,
-  "fat_g": 80,
-  "sleep_hours": 7.5,
-  "resting_hr": 52,
+  "weight": 86.0,
+  "kcalConsumed": 2400,
+  "protein": 180,
+  "carbohydrates": 220,
+  "fatTotal": 80,
+  "sleepSecs": 27000,
+  "restingHR": 52,
   "hrv": 68.4,
   "fatigue": 2,
   "soreness": 1,
   "mood": 4,
   "motivation": 4,
   "stress": 2,
-  "notes": "Felt good today"
+  "comments": "Felt good today"
 }
 ```
 
