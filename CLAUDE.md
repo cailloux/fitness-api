@@ -18,7 +18,7 @@ This document contains everything Claude needs to work with the fitness-api and 
 
 ## Key Conventions
 
-- **Weight — Garmin:** `POST /garmin/weight` takes `weight_lbs`, converted to kg internally
+- **Weight — Garmin:** `POST /garmin/weight` takes `weight_kg` directly (no conversion — client sends kg)
 - **Weight — Intervals.icu:** `PUT /intervals/wellness/{date}` is a raw passthrough — pass `weight` in **kg** directly, no conversion happens
 - **Intervals.icu wellness in general:** raw passthrough, no field renaming or unit conversion — use the exact Intervals.icu field names/units (see API Reference below or https://intervals.icu/api/v1/docs)
 - **Dates:** always passed explicitly as `YYYY-MM-DD` — nothing defaults to server-side "today"
@@ -82,16 +82,15 @@ Z1 <115, Z2 115-140, Z3 140-159, Z4 159-178, Z5 >178
 ## Common Workflows
 
 ### Morning weight log
-Logs to both Intervals.icu and Garmin simultaneously. Note the unit difference —
-Garmin takes lbs (converted server-side), Intervals.icu wellness is a raw passthrough
-and takes kg directly.
+Logs to both Intervals.icu and Garmin simultaneously. Both now take kg directly —
+no client-side conversion needed for either.
 
 ```
 PUT /intervals/wellness/YYYY-MM-DD
 {"weight": 86.0}
 
 POST /garmin/weight
-{"weight_lbs": 189.6, "timestamp": "YYYY-MM-DDTHH:MM:SS"}
+{"weight_kg": 86.0, "timestamp": "YYYY-MM-DDTHH:MM:SS"}
 ```
 
 ### Nutrition / macros (Intervals.icu only)
@@ -357,6 +356,14 @@ Sport settings are **read-only** — do not PUT on sport-settings.
 
 Not supported — Garmin's API is food-database-based.
 `POST /garmin/nutrition` returns 501. Use `PUT /intervals/wellness/{date}` for macros.
+
+### Garmin — Activities
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/garmin/activities?start=&limit=` | Recent activities |
+| `GET` | `/garmin/activities/{id}` | Single activity |
+| `POST` | `/garmin/activities/upload` | Multipart file upload (.fit, .gpx, .tcx) |
 
 ---
 

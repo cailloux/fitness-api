@@ -228,7 +228,7 @@ Always pass `timestamp` in local time to avoid the UTC/local date boundary issue
 
 ```json
 {
-  "weight_lbs": 189.6,
+  "weight_kg": 86.0,
   "timestamp": "2026-04-19T07:00:00"
 }
 ```
@@ -281,11 +281,12 @@ GET /garmin/profile
 
 ---
 
-### Garmin — Activities (read-only)
+### Garmin — Activities
 
 ```
-GET /garmin/activities?start=0&limit=20
-GET /garmin/activities/{activity_id}
+GET  /garmin/activities?start=0&limit=20
+GET  /garmin/activities/{activity_id}
+POST /garmin/activities/upload    ← multipart file upload (.fit, .gpx, .tcx)
 ```
 
 ---

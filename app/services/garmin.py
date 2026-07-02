@@ -14,8 +14,8 @@ at any time, and MFA enforcement may require periodic re-authentication via:
 Write support summary:
     Weight          OK  add_weigh_in() -- reliable
     Body comp       OK  via .fit file upload -- reliable
-    Activity upload OK  upload supported
-    Workouts        OK  schedule/create supported
+    Activity upload OK  upload_activity()
+    Workouts        NOT IMPLEMENTED -- no schedule/create function exists
     Nutrition       NO  Garmin nutrition API is food-database-based, not
                         macro-total-based. Use Intervals.icu wellness instead.
 """
@@ -151,50 +151,45 @@ def log_nutrition(*args, **kwargs):
     )
 
 
-def get_nutrition_day(log_date: Optional[date] = None) -> dict:
+def get_nutrition_day(log_date: date) -> dict:
     """GET nutrition summary for a date (read-only)."""
     client = _get_client()
-    d = (log_date or date.today()).isoformat()
-    return client.get_nutrition_daily_food_log(log_date=d) or {}
+    return client.get_nutrition_daily_food_log(log_date=log_date.isoformat()) or {}
 
 
 # ---------------------------------------------------------------------------
 # Daily health & activity (read)
 # ---------------------------------------------------------------------------
 
-def get_stats(log_date: Optional[date] = None) -> dict:
+def get_stats(log_date: date) -> dict:
     """GET daily stats summary (steps, calories, HR, stress, etc.)."""
     client = _get_client()
-    d = (log_date or date.today()).isoformat()
-    return client.get_stats(cdate=d) or {}
+    return client.get_stats(cdate=log_date.isoformat()) or {}
 
 
-def get_body_composition(log_date: Optional[date] = None) -> dict:
+def get_body_composition(log_date: date) -> dict:
     """GET body composition data for a date."""
     client = _get_client()
-    d = (log_date or date.today()).isoformat()
+    d = log_date.isoformat()
     return client.get_body_composition(startdate=d, enddate=d) or {}
 
 
-def get_heart_rates(log_date: Optional[date] = None) -> dict:
+def get_heart_rates(log_date: date) -> dict:
     """GET heart rate data for a date."""
     client = _get_client()
-    d = (log_date or date.today()).isoformat()
-    return client.get_heart_rates(cdate=d) or {}
+    return client.get_heart_rates(cdate=log_date.isoformat()) or {}
 
 
-def get_sleep_data(log_date: Optional[date] = None) -> dict:
+def get_sleep_data(log_date: date) -> dict:
     """GET sleep data for a date."""
     client = _get_client()
-    d = (log_date or date.today()).isoformat()
-    return client.get_sleep_data(cdate=d) or {}
+    return client.get_sleep_data(cdate=log_date.isoformat()) or {}
 
 
-def get_steps_data(log_date: Optional[date] = None) -> dict:
+def get_steps_data(log_date: date) -> dict:
     """GET steps data for a date."""
     client = _get_client()
-    d = (log_date or date.today()).isoformat()
-    return client.get_steps_data(cdate=d) or {}
+    return client.get_steps_data(cdate=log_date.isoformat()) or {}
 
 
 # ---------------------------------------------------------------------------
