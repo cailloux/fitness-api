@@ -9,20 +9,18 @@ Write support is narrow by design — Garmin's unofficial API is fragile.
 Confirmed reliable writes:
     - Weight via add_weigh_in()
     - Body composition via add_body_composition() (.fit file upload)
-    - Activity file upload via upload_activity()
 
-Nutrition write is not implemented — see garmin.py service for rationale.
+Nutrition and activity file upload are not supported — nutrition logging is
+handled by Intervals.icu wellness (PUT /intervals/wellness/{date}) instead.
 Structured workout creation/scheduling is NOT implemented — no endpoint or
 service function exists for it despite the service docstring previously
 claiming otherwise.
 """
 
-import tempfile
 from datetime import date, datetime
-from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.services import garmin as svc
@@ -140,32 +138,6 @@ def get_body_composition(log_date: date):
 
 
 # ---------------------------------------------------------------------------
-# Nutrition  ⚠️  read-only — write not implemented
-# ---------------------------------------------------------------------------
-
-@router.get("/nutrition")
-def get_nutrition(log_date: date):
-    """Get nutrition summary for a date (read-only)."""
-    try:
-        return svc.get_nutrition_day(log_date=log_date)
-    except Exception as e:
-        raise _service_error(e)
-
-
-@router.post("/nutrition")
-def log_nutrition():
-    """
-    ⚠️  Not implemented.
-    Garmin's nutrition API is food-database-based; raw macro logging is not
-    supported. Use PUT /intervals/wellness/{date} for macro logging instead.
-    """
-    try:
-        svc.log_nutrition()
-    except Exception as e:
-        raise _service_error(e)
-
-
-# ---------------------------------------------------------------------------
 # Daily health (read)
 # ---------------------------------------------------------------------------
 
@@ -241,23 +213,3 @@ def get_activity(activity_id: str):
         return svc.get_activity(activity_id)
     except Exception as e:
         raise _service_error(e)
-
-
-@router.post("/activities/upload")
-async def upload_activity(file: UploadFile):
-    """
-    Upload an activity file (.fit, .gpx, or .tcx) to Garmin Connect.
-
-    The file is written to a temp path and handed to svc.upload_activity(),
-    which was previously defined but not reachable via any endpoint.
-    """
-    suffix = Path(file.filename or "").suffix or ".fit"
-    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-        tmp.write(await file.read())
-        tmp_path = tmp.name
-    try:
-        return svc.upload_activity(tmp_path)
-    except Exception as e:
-        raise _service_error(e)
-    finally:
-        Path(tmp_path).unlink(missing_ok=True)

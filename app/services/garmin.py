@@ -14,10 +14,11 @@ at any time, and MFA enforcement may require periodic re-authentication via:
 Write support summary:
     Weight          OK  add_weigh_in() -- reliable
     Body comp       OK  via .fit file upload -- reliable
-    Activity upload OK  upload_activity()
     Workouts        NOT IMPLEMENTED -- no schedule/create function exists
-    Nutrition       NO  Garmin nutrition API is food-database-based, not
-                        macro-total-based. Use Intervals.icu wellness instead.
+    Nutrition       NOT SUPPORTED -- Garmin's nutrition API is food-database-
+                        based, not macro-total-based. Use Intervals.icu
+                        wellness instead.
+    Activity upload NOT SUPPORTED -- removed; no consumer for it.
 """
 
 import logging
@@ -134,30 +135,6 @@ def delete_weigh_in(weigh_in_id: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Nutrition  -- read-only, write not implemented
-# ---------------------------------------------------------------------------
-
-def log_nutrition(*args, **kwargs):
-    """
-    NOT IMPLEMENTED.
-
-    Garmin's nutrition API requires matching food items to their internal food
-    database. Logging raw macro totals is not supported.
-    Use Intervals.icu wellness endpoint for raw macro logging instead.
-    """
-    raise NotImplementedError(
-        "Garmin nutrition logging is not implemented. "
-        "Use PUT /intervals/wellness/{date} to log calories and macros."
-    )
-
-
-def get_nutrition_day(log_date: date) -> dict:
-    """GET nutrition summary for a date (read-only)."""
-    client = _get_client()
-    return client.get_nutrition_daily_food_log(log_date=log_date.isoformat()) or {}
-
-
-# ---------------------------------------------------------------------------
 # Daily health & activity (read)
 # ---------------------------------------------------------------------------
 
@@ -222,15 +199,6 @@ def get_activity(activity_id: str) -> dict:
     """GET a single activity by ID."""
     client = _get_client()
     return client.get_activity(activity_id) or {}
-
-
-def upload_activity(file_path: str) -> dict:
-    """Upload an activity file (.fit, .gpx, .tcx)."""
-    client = _get_client()
-    with open(file_path, "rb") as f:
-        result = client.upload_activity(f)
-    logger.info("Garmin: uploaded activity from %s", file_path)
-    return result or {}
 
 
 # ---------------------------------------------------------------------------
