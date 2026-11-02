@@ -1,4 +1,4 @@
-FROM python:3.14-slim
+FROM python:3.15-slim
 
 # Keeps Python from buffering stdout/stderr — important for Docker log visibility
 ENV PYTHONUNBUFFERED=1
